@@ -28,3 +28,4 @@ backend/models_cache/*
 !backend/models_cache/.gitkeep
 backend/reports/*
 !backend/reports/.gitkeep
+.pytest_cache/
