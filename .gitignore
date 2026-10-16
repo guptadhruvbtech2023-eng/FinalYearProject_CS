@@ -1,0 +1,30 @@
+# Environments
+.env
+.env.local
+.env.*.local
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# System & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Backend caches
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/models_cache/*
+!backend/models_cache/.gitkeep
+backend/reports/*
+!backend/reports/.gitkeep
