@@ -18,6 +18,7 @@ import Regions from './pages/Regions';
 import EDA from './pages/EDA';
 import Correlation from './pages/Correlation';
 import Predictions from './pages/Predictions';
+import Experiments from './pages/Experiments';
 import Anomalies from './pages/Anomalies';
 import Explainability from './pages/Explainability';
 import WhatIf from './pages/WhatIf';
@@ -48,6 +49,7 @@ const App = () => {
                 <Route path="/eda" element={<EDA />} />
                 <Route path="/correlation" element={<Correlation />} />
                 <Route path="/predictions" element={<Predictions />} />
+                <Route path="/experiments" element={<Experiments />} />
                 <Route path="/anomalies" element={<Anomalies />} />
                 <Route path="/explainability" element={<Explainability />} />
                 <Route path="/what-if" element={<WhatIf />} />

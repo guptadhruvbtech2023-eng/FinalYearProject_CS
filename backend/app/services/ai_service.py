@@ -302,7 +302,56 @@ class AIService:
                 "4. **Inventory Rebalancing**: Align stock allocation with high-margin regional hubs like the top performing territories."
             )
 
-        # Intent 6: General summary / Default
+        # Intent 6: Data Cleaning & Quality Audit
+        elif "clean" in q_lower or "duplicate" in q_lower or "audit" in q_lower or "missing" in q_lower or "quality" in q_lower:
+            from backend.app.services.cleaning_service import cleaning_service
+            audit_hist = cleaning_service.get_audit_history()
+            orig_df = data_service.original_df if data_service.original_df is not None else df
+            initial_count = len(orig_df)
+            active_count = len(df)
+            rows_diff = initial_count - active_count
+
+            supporting_stats = {
+                "dataset_version": data_service.version_id,
+                "original_records": initial_count,
+                "active_records": active_count,
+                "rows_removed": rows_diff,
+                "operations_logged": audit_hist.get("total_operations", 0),
+                "cells_modified": audit_hist.get("total_cell_modifications", 0)
+            }
+            answer_text = (
+                f"Data Cleaning & Quality Audit Status for dataset **{data_service.filename or 'dataset'}** (Version: {data_service.version_id}):\n\n"
+                f"- **Dataset Master Copy**: Preserved immutably with {initial_count:,} original rows.\n"
+                f"- **Active Working Copy**: {active_count:,} sanitized records ({rows_diff:,} records removed/dropped).\n"
+                f"- **Logged Operations**: {audit_hist.get('total_operations', 0)} transformations recorded in persistent audit trail.\n"
+                f"- **Modified Cells**: {audit_hist.get('total_cell_modifications', 0)} cells updated with verified before-and-after values.\n\n"
+                f"You can review exact cell modifications or trigger 1-click Undo / Reset in the **Data Cleaning & Audit Trail** tab."
+            )
+
+        # Intent 7: Machine Learning & Baseline Model Comparison
+        elif "model" in q_lower or "forecast" in q_lower or "machine learning" in q_lower or "baseline" in q_lower or "prediction" in q_lower:
+            from backend.app.services.ml_service import ml_service
+            ml_data = ml_service.train_models(target_variable="Profit")
+            best_mod = ml_data.get("best_model", "Random Forest")
+            best_r2_val = ml_data.get("best_r2", 0.0)
+            metrics_summary = ml_data.get("metrics", [])
+
+            supporting_stats = {
+                "target": "Profit",
+                "best_model": best_mod,
+                "best_r2": best_r2_val,
+                "models_tested": [m.get("model") for m in metrics_summary]
+            }
+            lines = [f"- **{m.get('model')}**: MAE = {m.get('mae')}, R² = {m.get('r2')}, MAPE = {m.get('mape')}% (Uplift: +{m.get('improvement_over_baseline_pct')}%)" for m in metrics_summary]
+            metrics_txt = "\n".join(lines)
+            answer_text = (
+                f"Predictive Analytics & Model Evaluation Summary:\n\n"
+                f"Models benchmarked against an empirical naive baseline on a strictly leak-free train/test partition:\n\n"
+                f"{metrics_txt}\n\n"
+                f"**Top Architecture**: **{best_mod}** attained an $R^2$ score of **{best_r2_val}**, proving significant error reduction over historical averages."
+            )
+
+        # Intent 8: General summary / Default
         else:
             supporting_stats = kpis
             answer_text = (

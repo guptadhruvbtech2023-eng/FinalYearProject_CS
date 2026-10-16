@@ -1,8 +1,11 @@
 import os
 import joblib
+import sklearn
+from datetime import datetime
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, List, Optional
+from sklearn.dummy import DummyRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -13,6 +16,15 @@ from backend.app.config import settings
 from backend.app.services.data_service import data_service
 from backend.app.utils.helpers import clean_for_json, detect_columns
 from backend.app.utils.preprocessing import prepare_ml_dataset
+
+def safe_mape(y_true, y_pred) -> float:
+    """Calculates Mean Absolute Percentage Error (MAPE) safely avoiding division by zero."""
+    y_true_arr = np.array(y_true, dtype=float)
+    y_pred_arr = np.array(y_pred, dtype=float)
+    mask = np.abs(y_true_arr) > 1e-4
+    if np.sum(mask) == 0:
+        return 0.0
+    return round(float(np.mean(np.abs((y_true_arr[mask] - y_pred_arr[mask]) / y_true_arr[mask])) * 100), 2)
 
 class MLService:
     def __init__(self):
@@ -69,6 +81,30 @@ class MLService:
             )
 
         results = []
+
+        # 1. Scientific Control: Evaluate Historical Mean Baseline
+        dummy = DummyRegressor(strategy="mean")
+        dummy.fit(X_train, y_train)
+        dummy_pred = dummy.predict(X_test)
+        base_mae = float(mean_absolute_error(y_test, dummy_pred))
+        base_mse = float(mean_squared_error(y_test, dummy_pred))
+        base_rmse = float(np.sqrt(base_mse))
+        base_r2 = float(r2_score(y_test, dummy_pred))
+        base_mape = safe_mape(y_test, dummy_pred)
+
+        results.append({
+            "model": "Historical Mean (Baseline)",
+            "model_name": "Historical Mean (Baseline)",
+            "mae": round(base_mae, 3),
+            "mse": round(base_mse, 3),
+            "rmse": round(base_rmse, 3),
+            "r2": round(base_r2, 4),
+            "mape": base_mape,
+            "improvement_over_baseline_pct": 0.0,
+            "is_baseline": True,
+            "description": "Standard naive baseline predicting historical average"
+        })
+
         best_r2 = -float("inf")
         best_model_name = None
         best_pipeline = None
@@ -88,17 +124,25 @@ class MLService:
             # Predict on test set
             y_pred = pipe.predict(X_test)
 
-            mae = mean_absolute_error(y_test, y_pred)
-            mse = mean_squared_error(y_test, y_pred)
-            rmse = np.sqrt(mse)
-            r2 = r2_score(y_test, y_pred)
+            mae = float(mean_absolute_error(y_test, y_pred))
+            mse = float(mean_squared_error(y_test, y_pred))
+            rmse = float(np.sqrt(mse))
+            r2 = float(r2_score(y_test, y_pred))
+            mape = safe_mape(y_test, y_pred)
+
+            improvement_pct = round(((base_mae - mae) / base_mae) * 100, 2) if base_mae > 0 else 0.0
 
             metric_entry = {
                 "model": name,
-                "mae": round(float(mae), 3),
-                "mse": round(float(mse), 3),
-                "rmse": round(float(rmse), 3),
-                "r2": round(float(r2), 4)
+                "model_name": name,
+                "mae": round(mae, 3),
+                "mse": round(mse, 3),
+                "rmse": round(rmse, 3),
+                "r2": round(r2, 4),
+                "mape": mape,
+                "improvement_over_baseline_pct": improvement_pct,
+                "is_baseline": False,
+                "description": f"Supervised {name} trained on leak-free split"
             }
             results.append(metric_entry)
 
@@ -176,7 +220,18 @@ class MLService:
             "actual_vs_predicted": actual_vs_pred,
             "training_samples": len(X_train),
             "testing_samples": len(X_test),
-            "features_used": list(X_train.columns)
+            "features_used": list(X_train.columns),
+            "reproducibility": {
+                "dataset_id": data_service.dataset_id,
+                "dataset_version": data_service.version_id,
+                "random_seed": 42,
+                "test_size": test_size,
+                "train_samples": len(X_train),
+                "test_samples": len(X_test),
+                "scikit_learn_version": sklearn.__version__,
+                "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+            },
+            "scientific_disclaimer": "Feature importance represents statistical predictive contribution within fitted decision tree estimators and does NOT establish direct physical or business causality."
         })
 
     def predict(self, target_variable: str, features: Dict[str, Any]) -> Dict[str, Any]:

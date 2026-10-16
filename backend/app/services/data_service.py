@@ -1,5 +1,7 @@
 import os
 import io
+import uuid
+from datetime import datetime
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -11,7 +13,12 @@ from backend.app.utils.preprocessing import parse_dates_and_engineer_features
 class DataService:
     def __init__(self):
         self.df: Optional[pd.DataFrame] = None
+        self.original_df: Optional[pd.DataFrame] = None
+        self.history_stack: List[pd.DataFrame] = []
         self.filename: Optional[str] = None
+        self.dataset_id: str = str(uuid.uuid4())[:8]
+        self.version_id: str = "v1.0"
+        self.upload_timestamp: str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         self.column_mapping: Dict[str, Optional[str]] = {}
         self.is_demo: bool = False
         self.profile_cache: Optional[Dict[str, Any]] = None
@@ -33,10 +40,10 @@ class DataService:
         except UnicodeDecodeError:
             df = pd.read_csv(filepath, encoding="latin1")
             
-        return self._set_dataframe(df, Path(filepath).name, is_demo=is_demo)
+        return self._set_initial_dataframe(df, Path(filepath).name, is_demo=is_demo)
 
     def load_from_bytes(self, content: bytes, filename: str) -> Dict[str, Any]:
-        """Loads dataset from uploaded file bytes."""
+        """Loads dataset from uploaded file bytes, preserving immutable original."""
         try:
             df = pd.read_csv(io.BytesIO(content), encoding="utf-8")
         except UnicodeDecodeError:
@@ -47,16 +54,66 @@ class DataService:
         with open(save_path, "wb") as f:
             f.write(content)
             
-        return self._set_dataframe(df, filename, is_demo=False)
+        return self._set_initial_dataframe(df, filename, is_demo=False)
 
-    def _set_dataframe(self, df: pd.DataFrame, filename: str, is_demo: bool = False) -> Dict[str, Any]:
-        # Preprocess dates & numerical columns
-        self.df = parse_dates_and_engineer_features(df)
+    def _set_initial_dataframe(self, df: pd.DataFrame, filename: str, is_demo: bool = False) -> Dict[str, Any]:
+        """Sets the immutable original dataset and initializes active working copy."""
+        preprocessed = parse_dates_and_engineer_features(df)
+        self.original_df = preprocessed.copy(deep=True)
+        self.df = preprocessed.copy(deep=True)
+        self.history_stack = []
         self.filename = filename
         self.is_demo = is_demo
+        self.dataset_id = str(uuid.uuid4())[:8]
+        self.version_id = "v1.0"
+        self.upload_timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         self.column_mapping = detect_columns(self.df)
         self.profile_cache = None
         return self.get_profile()
+
+    def set_working_dataframe(self, new_df: pd.DataFrame, action_label: str = "Cleaning Operation") -> Dict[str, Any]:
+        """Pushes current working copy to history stack and updates active dataset."""
+        if self.df is not None:
+            # Keep max 10 states in history stack to preserve memory
+            if len(self.history_stack) >= 10:
+                self.history_stack.pop(0)
+            self.history_stack.append(self.df.copy(deep=True))
+        
+        self.df = parse_dates_and_engineer_features(new_df)
+        self.column_mapping = detect_columns(self.df)
+        # Advance version tag
+        ver_num = len(self.history_stack) + 1
+        self.version_id = f"v1.{ver_num}"
+        self.profile_cache = None
+        return self.get_profile()
+
+    def undo_last_operation(self) -> Dict[str, Any]:
+        """Reverts active working copy to the most recent snapshot."""
+        if not self.history_stack:
+            return {"status": "error", "message": "No previous operations to undo."}
+        
+        self.df = self.history_stack.pop()
+        self.column_mapping = detect_columns(self.df)
+        ver_num = max(0, len(self.history_stack))
+        self.version_id = f"v1.{ver_num}" if ver_num > 0 else "v1.0"
+        self.profile_cache = None
+        return self.get_profile()
+
+    def reset_to_original(self) -> Dict[str, Any]:
+        """Restores working copy directly from the immutable original copy."""
+        if self.original_df is None:
+            return {"status": "error", "message": "No original dataset to reset to."}
+        
+        self.df = self.original_df.copy(deep=True)
+        self.history_stack.clear()
+        self.column_mapping = detect_columns(self.df)
+        self.version_id = "v1.0 (Reset to Original)"
+        self.profile_cache = None
+        return self.get_profile()
+
+    def _set_dataframe(self, df: pd.DataFrame, filename: str, is_demo: bool = False) -> Dict[str, Any]:
+        """Backward-compatible alias for existing code."""
+        return self._set_initial_dataframe(df, filename, is_demo=is_demo)
 
     def get_profile(self) -> Dict[str, Any]:
         """Returns deep profile and summary statistics of current dataset."""
@@ -133,6 +190,13 @@ class DataService:
         result = {
             "status": "ready",
             "filename": self.filename,
+            "dataset_id": self.dataset_id,
+            "version_id": self.version_id,
+            "upload_timestamp": self.upload_timestamp,
+            "can_undo": len(self.history_stack) > 0,
+            "is_modified": len(self.history_stack) > 0 or (self.original_df is not None and len(self.df) != len(self.original_df)),
+            "original_rows": len(self.original_df) if self.original_df is not None else total_rows,
+            "original_columns": len(self.original_df.columns) if self.original_df is not None else total_cols,
             "is_demo": self.is_demo,
             "total_rows": total_rows,
             "total_columns": total_cols,

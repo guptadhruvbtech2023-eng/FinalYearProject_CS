@@ -16,6 +16,10 @@ class CleanRequest(BaseModel):
     type_conversions: Optional[Dict[str, str]] = None   # {col_name: "numeric"|"string"|"datetime"}
     outlier_treatment: Optional[Dict[str, str]] = None  # {col_name: "cap"|"remove"}
     outlier_method: str = "iqr"                         # "iqr" | "zscore"
+    trim_whitespace: bool = False
+
+class CleanPreviewRequest(CleanRequest):
+    pass
 
 class OutlierDetectRequest(BaseModel):
     column: str

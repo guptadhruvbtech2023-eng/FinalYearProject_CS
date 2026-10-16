@@ -125,7 +125,9 @@ class AnomalyService:
             "status": "success",
             "method": method,
             "total_anomalies_detected": len(anomalies_list),
-            "anomalies": anomalies_list
+            "anomalies": anomalies_list,
+            "disclaimer": "Flagged transactions represent statistical anomalies based on configured variance bounds and do not necessarily represent operational fraud or data corruption.",
+            "method_explanation": "Isolation Forest constructs an ensemble of isolation trees to isolate sparse records; IQR and Z-Score evaluate univariate dispersion against standard distribution thresholds."
         })
 
 anomaly_service = AnomalyService()

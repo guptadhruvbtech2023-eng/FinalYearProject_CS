@@ -22,6 +22,7 @@ from backend.app.api.anomaly_routes import router as anomaly_router
 from backend.app.api.ai_routes import router as ai_router
 from backend.app.api.whatif_routes import router as whatif_router
 from backend.app.api.report_routes import router as report_router
+from backend.app.api.experiment_routes import router as experiment_router
 
 # Ensure UTF-8 stdout on Windows
 try:
@@ -70,6 +71,7 @@ app.include_router(anomaly_router)
 app.include_router(ai_router)
 app.include_router(whatif_router)
 app.include_router(report_router)
+app.include_router(experiment_router)
 
 @app.get("/")
 def health_check():

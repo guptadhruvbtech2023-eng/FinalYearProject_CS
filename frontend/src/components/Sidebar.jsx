@@ -18,7 +18,8 @@ import {
   Lightbulb,
   Sliders,
   FileText,
-  Home
+  Home,
+  FlaskConical
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -55,6 +56,7 @@ const Sidebar = () => {
         { name: "AI Insights", path: "/ai-insights", icon: Sparkles },
         { name: "AI Business Analyst", path: "/ai-chat", icon: Bot },
         { name: "ML Predictions", path: "/predictions", icon: BrainCircuit },
+        { name: "Research Experiments", path: "/experiments", icon: FlaskConical },
         { name: "Anomaly Detection", path: "/anomalies", icon: AlertTriangle },
         { name: "Explainable AI", path: "/explainability", icon: Lightbulb },
         { name: "What-If Analysis", path: "/what-if", icon: Sliders }

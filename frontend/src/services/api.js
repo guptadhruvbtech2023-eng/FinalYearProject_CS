@@ -11,10 +11,19 @@ export const dataApi = {
     headers: { 'Content-Type': undefined }
   }),
   getCleaningSummary: () => api.get('/data/cleaning-summary'),
+  getCleaningHistory: (limit = 100, column = null) => 
+    api.get(`/data/cleaning/history?limit=${limit}${column ? `&column=${column}` : ''}`),
+  previewCleaning: (data) => api.post('/data/cleaning/preview', data),
+  undoCleaning: () => api.post('/data/cleaning/undo'),
+  resetCleaning: () => api.post('/data/cleaning/reset'),
   inspectOutliers: (column, method = 'iqr', threshold = 1.5) => 
     api.post('/data/outliers/inspect', { column, method, threshold }),
   cleanDataset: (data) => api.post('/data/clean', data),
   resetDemo: () => api.post('/data/reset-demo'),
+  exportCsvUrl: '/api/data/export/csv',
+  exportExcelUrl: '/api/data/export/excel',
+  exportCleanedPdfUrl: '/api/data/export/cleaned-pdf',
+  exportCleaningReportPdfUrl: '/api/data/export/cleaning-report-pdf',
 };
 
 export const analyticsApi = {
@@ -57,6 +66,11 @@ export const whatifApi = {
 export const reportApi = {
   generate: (filters = {}) => api.post('/report/generate', filters),
   exportHtml: (filters = {}) => api.post('/report/export-html', filters, { responseType: 'text' }),
+};
+
+export const experimentApi = {
+  getSummary: (target = 'Profit') => api.get(`/experiments/summary?target=${target}`),
+  exportMarkdownUrl: (target = 'Profit') => `/api/experiments/export-markdown?target=${target}`,
 };
 
 export default api;
