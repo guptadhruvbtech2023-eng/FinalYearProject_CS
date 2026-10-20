@@ -1,4 +1,5 @@
 import sys
+import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -47,10 +48,18 @@ app = FastAPI(
 )
 
 # Enable CORS for frontend integration
+cors_origins_env = os.getenv("CORS_ORIGINS", "*").strip()
+if cors_origins_env == "*":
+    origins = ["*"]
+    allow_credentials = False
+else:
+    origins = [orig.strip() for orig in cors_origins_env.split(",") if orig.strip()]
+    allow_credentials = True
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=origins,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

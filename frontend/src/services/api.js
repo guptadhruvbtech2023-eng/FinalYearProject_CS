@@ -1,7 +1,14 @@
 import axios from 'axios';
 
+// Base URL: reads from VITE_API_BASE_URL in production, defaults to '/api' for local Vite proxy
+let rawBase = (import.meta.env.VITE_API_BASE_URL || '/api').trim().replace(/\/+$/, '');
+if (rawBase.startsWith('http') && !rawBase.endsWith('/api')) {
+  rawBase += '/api';
+}
+export const API_BASE = rawBase;
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE,
   timeout: 45000,
 });
 
@@ -20,10 +27,10 @@ export const dataApi = {
     api.post('/data/outliers/inspect', { column, method, threshold }),
   cleanDataset: (data) => api.post('/data/clean', data),
   resetDemo: () => api.post('/data/reset-demo'),
-  exportCsvUrl: '/api/data/export/csv',
-  exportExcelUrl: '/api/data/export/excel',
-  exportCleanedPdfUrl: '/api/data/export/cleaned-pdf',
-  exportCleaningReportPdfUrl: '/api/data/export/cleaning-report-pdf',
+  exportCsvUrl: `${API_BASE}/data/export/csv`,
+  exportExcelUrl: `${API_BASE}/data/export/excel`,
+  exportCleanedPdfUrl: `${API_BASE}/data/export/cleaned-pdf`,
+  exportCleaningReportPdfUrl: `${API_BASE}/data/export/cleaning-report-pdf`,
 };
 
 export const analyticsApi = {
@@ -70,7 +77,7 @@ export const reportApi = {
 
 export const experimentApi = {
   getSummary: (target = 'Profit') => api.get(`/experiments/summary?target=${target}`),
-  exportMarkdownUrl: (target = 'Profit') => `/api/experiments/export-markdown?target=${target}`,
+  exportMarkdownUrl: (target = 'Profit') => `${API_BASE}/experiments/export-markdown?target=${target}`,
 };
 
 export default api;
